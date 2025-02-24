@@ -1,5 +1,9 @@
 import copy
 
+# SHOULD I CALCULATE A LIST OF VIABLE WORD POSITIONS UPON BOARD GENERATION?
+# DICTIONARY WITH INDEX WORD LENGTH, returns list of points (one dictionary for rows and columns)
+# WAYYY more efficient than going through every single square and testing whether word is possible there
+
 class Board:
     # ATTRIBUTES
     # size: nxn size of the board
@@ -8,26 +12,42 @@ class Board:
     # columns: list of columns, each of which has a string representation
     # constriction: number of diagonal constrictions made in tope left and bottom right corners respectively
     # next_row: next row to be created
+    # start_squares: dictionary indexed by length of starting squares for unfilled words
 
     # METHODS
+    # UTILS
     # print: prints board
+    # clone: returns deep copy of board
+    # transpose: returns transposed deep copy of board
 
-    def __init__(self, size, board=None, rows=None, columns=None, constriction=None, next_row=0):
-        self.size = size
-        self.next_row = next_row
+    # MANIPuLATIONS
+    # insert_word("word"): yields all copies of board with "word" where it can be placed
+
+    def __init__(self, size, board=None, rows=None, columns=None, constriction=None, start_squares=None):
         self.constriction = constriction if constriction is not None else [0, 0]
         if board:
+            self.size = size
             self.board = board
             self.rows = rows
             self.columns = columns
+            self.start_squares = start_squares
         else:     
             # building board and rows with constrictions
+            self.size = size
             self.board = [["0" for _ in range(self.size)] for _ in range(self.size)]
-            self.rows = []
             first_constriction, second_constriction = self.constriction[0], self.constriction[1]
-            for row in range(size):
+            self.rows = []
+            self.start_squares = {}
+            for row in range(self.size):
+                # entries in start_squares
+                c = max(0, first_constriction - row)
+                word_len = self.size - c - max(0, row - self.size + second_constriction + 1)
+                self.start_squares.setdefault(word_len, []).append(StartSquare(row, c, 1)) # 1 is row
+                self.start_squares[word_len].append(StartSquare(c, row, 0)) # include associated col word
+                
+                # entries in self.board, self.rows, and self.columns
                 word = ""
-                for col in range(size):
+                for col in range(self.size):
                     if row + col < first_constriction:
                         self.board[row][col] = "#"
                         word += "#"
@@ -39,37 +59,28 @@ class Board:
                 
                 self.rows.append(word)
             self.columns = self.rows[:]
-    
-    def generate_word_row(self, row, col, word):
-            # returns clone of this board with word generated down at (row, col),
-            # or None if not feasible
-
-            if (col + len(word) - 1) > self.size - 1: # word too long for board
-                return None
-            if (self.board[row][col] == '#') or (self.board[row][col + len(word) - 1] == "#"): # if endpoint in "#"
-                return None
-
-            if (col != 0 and self.board[row][col - 1] != '#') or ((col + len(word) != self.size) and self.board[row][col + len(word)] != "#"): # not snug between "#"
-                return None
             
+    # returns clone of this board with word generated down at (row, col)
+    # or None if not feasible
+    def generate_word_at_start_square(self, start_square, word):
+            # still need to check that perpendicular words are potentially valid
+            if not start_square.orientation: # if column and not row
+                inv_start_square = start_square.invert()
+                result = self.transpose().generate_word_at_start_square(inv_start_square, word)
+                return result.transpose() if result else result # transpose if board, just return if none
+            
+            col, row = start_square.col, start_square.row
             board_copy = self.clone()
             for i in range(len(word)):
-                if word[i] == self.board[row][col + i] or self.board[row][col + i] == "0":
+                if word[i] == self.board[row][col + i] or self.board[row][col + i] == "0": # checks if each letter COULD fit
                     board_copy.board[row][col + i] = word[i]
                 else:
                     return None
             return board_copy
     
-    def generate_word_down(self, row, col, word):
-            # returns clone of this board with word generated down at (row, col),
-            # or None if not feasible
-            copy = self.transpose()
-            result = copy.generate_word_row(col, row, word)
-            if result:
-                return result.transpose()
-    
     def insert_word(self, word):
         # yields a clone of this board with word somewhere
+        """
         for row in range(self.size):
             for col in range(self.size):
                 copy_with_word_row = self.generate_word_row(row, col, word) # tries row,
@@ -83,6 +94,16 @@ class Board:
                     col_board = copy_with_word_col.transpose()
                     col_board.print()
                     yield col_board
+        """
+        
+        # improved version with self.start_squares
+        viable_starts = self.start_squares[len(word)]
+        for chosen_start_square in viable_starts:
+            copy_with_word = self.generate_word_at_start_square(chosen_start_square, word)
+            if copy_with_word:
+                copy_with_word.print()
+                yield copy_with_word
+
     
     def print(self):
         for row in range(self.size):
@@ -96,12 +117,37 @@ class Board:
         new_rows = self.rows[:]
         new_columns = self.columns[:]
         new_constriction = self.constriction[:]
-        return Board(self.size, new_board, new_rows, new_columns, new_constriction, self.next_row)
+        # new start squares
+        new_start_squares = {}
+        for word_length in self.start_squares:
+            new_start_squares[word_length] = []
+            for start_square in self.start_squares[word_length]:
+                new_start_squares[word_length].append(start_square.copy())
+
+        return Board(self.size, new_board, new_rows, new_columns, new_constriction, new_start_squares)
     
-    def transpose(self):
+    def transpose(self): # doesn't transpose StartSquares...
         copy = self.clone()
         for row in range(self.size):
             for col in range(self.size):
                 copy.board[row][col] = self.board[col][row]
         copy.rows, copy.columns = copy.columns, copy.rows
         return copy
+
+# to track where words can start--row and column indeces, plus
+class StartSquare:
+    def __init__(self, row, col, orientation):
+        self.row = row
+        self.col = col
+        self.orientation = orientation # 1 for row, 0 for column
+    
+    def copy(self):
+        return StartSquare(self.row, self.col, self.orientation)
+    
+    def print(self):
+        orientation = "a" if self.orientation else "d"
+        print("(" + str(self.row) + " , " + str(self.col) + " , " + orientation + ")")
+    
+    # row <-> col and orientation flips
+    def invert(self):
+        return StartSquare(self.col, self.row, not self.orientation)
