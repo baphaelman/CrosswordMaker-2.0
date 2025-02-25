@@ -8,12 +8,10 @@ class StartSquare:
     def copy(self):
         return StartSquare(self.row, self.col, self.orientation)
     
-    def print(self):
-        orientation = "a" if self.orientation else "d"
-        print("(" + str(self.row) + " , " + str(self.col) + " , " + orientation + ")")
+    def __repr__(self):
+        orientation = "across" if self.orientation else "down"
+        return "(" + str(self.row) + " , " + str(self.col) + " , " + orientation + ")"
     
     # row <-> col and orientation flips
     def invert(self):
         return StartSquare(self.col, self.row, not self.orientation)
-    
-    # make repr

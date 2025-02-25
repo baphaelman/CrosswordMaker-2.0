@@ -85,16 +85,16 @@ class Board:
         for chosen_start_square in viable_starts:
             copy_with_word = self.generate_word_at_start_square(chosen_start_square, word)
             if copy_with_word:
-                #copy_with_word.print()
                 yield copy_with_word
 
     
-    def print(self):
+    def __repr__(self):
+        return_string = ""
         for row in range(self.size):
-            line = ""
             for col in range(self.size):
-                line += self.board[row][col] + " "
-            print(line)
+                return_string += self.board[row][col] + " "
+            return_string += "\n"
+        return return_string
 
     def clone(self):
         new_board = copy.deepcopy(self.board)
