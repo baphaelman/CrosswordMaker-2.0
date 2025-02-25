@@ -22,8 +22,13 @@ class Crossword:
                 self.common_words[len(word)].append(word)
         self.board = board if board else Board(self.size, self.common_words, constriction=constriction)
     
+    # put key words in board
     def yield_key_words_boards(self):
         yield from self.board.yield_key_words(self.key_words)
+
+    # fill rest of board
+    # def fill_board(self):
+
     
     # even necessary anymore??
     def copy(self):
