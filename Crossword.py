@@ -1,4 +1,5 @@
 from Board import Board
+from parser import common_words
 
 class Crossword:
     # ATTRIBUTES
@@ -6,6 +7,7 @@ class Crossword:
     # key_words: list of words required in Board
     # constriction: list of two integers, passed to Board
     # board: Board representation
+    # commno_words: list of potential filler words
 
     # METHODS
 
@@ -13,13 +15,16 @@ class Crossword:
         self.size = size
         self.key_words = sorted(key_words, key=len, reverse=True) # sorted with longest first
         self.constriction = constriction if constriction else [0, 0]
-        self.board = board if board else Board(self.size, constriction=constriction)
+        self.common_words = common_words # to omptimize, could only consider indexes that have viable lengths; see board's StartSquares
+        # adding key words to accepted list
+        for word in self.key_words:
+            if word not in self.common_words[len(word)]:
+                self.common_words[len(word)].append(word)
+        self.board = board if board else Board(self.size, self.common_words, constriction=constriction)
     
-    def yield_key_words_board(self): # turn this into a generator for each board containing the key words
-        word = self.key_words[0]
-        copy = self.copy()
-        # eventually yield from copy.yield_key_words_board() with truncated key_words list?
-        
+    def yield_key_words_boards(self):
+        yield from self.board.yield_key_words(self.key_words)
     
+    # even necessary anymore??
     def copy(self):
         return Crossword(self.size, list(self.key_words), list(self.constriction), self.board.copy())
