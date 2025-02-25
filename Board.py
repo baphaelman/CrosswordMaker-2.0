@@ -1,4 +1,5 @@
 import copy
+from StartSquare import StartSquare
 
 # SHOULD I CALCULATE A LIST OF VIABLE WORD POSITIONS UPON BOARD GENERATION?
 # DICTIONARY WITH INDEX WORD LENGTH, returns list of points (one dictionary for rows and columns)
@@ -25,15 +26,14 @@ class Board:
 
     def __init__(self, size, board=None, rows=None, columns=None, constriction=None, start_squares=None):
         self.constriction = constriction if constriction is not None else [0, 0]
-        if board:
-            self.size = size
+        self.size = size
+        if board: # why do i have this??
             self.board = board
             self.rows = rows
             self.columns = columns
             self.start_squares = start_squares
         else:     
             # building board and rows with constrictions
-            self.size = size
             self.board = [["0" for _ in range(self.size)] for _ in range(self.size)]
             first_constriction, second_constriction = self.constriction[0], self.constriction[1]
             self.rows = []
@@ -78,30 +78,14 @@ class Board:
                     return None
             return board_copy
     
+    # have to update rows and cols?
     def insert_word(self, word):
         # yields a clone of this board with word somewhere
-        """
-        for row in range(self.size):
-            for col in range(self.size):
-                copy_with_word_row = self.generate_word_row(row, col, word) # tries row,
-                if copy_with_word_row:
-                    copy_with_word_row.print()
-                    yield copy_with_word_row
-                
-                trans = self.transpose()
-                copy_with_word_col = trans.generate_word_row(col, row, word) # then col
-                if copy_with_word_col:
-                    col_board = copy_with_word_col.transpose()
-                    col_board.print()
-                    yield col_board
-        """
-        
-        # improved version with self.start_squares
         viable_starts = self.start_squares[len(word)]
         for chosen_start_square in viable_starts:
             copy_with_word = self.generate_word_at_start_square(chosen_start_square, word)
             if copy_with_word:
-                copy_with_word.print()
+                #copy_with_word.print()
                 yield copy_with_word
 
     
@@ -133,21 +117,3 @@ class Board:
                 copy.board[row][col] = self.board[col][row]
         copy.rows, copy.columns = copy.columns, copy.rows
         return copy
-
-# to track where words can start--row and column indeces, plus
-class StartSquare:
-    def __init__(self, row, col, orientation):
-        self.row = row
-        self.col = col
-        self.orientation = orientation # 1 for row, 0 for column
-    
-    def copy(self):
-        return StartSquare(self.row, self.col, self.orientation)
-    
-    def print(self):
-        orientation = "a" if self.orientation else "d"
-        print("(" + str(self.row) + " , " + str(self.col) + " , " + orientation + ")")
-    
-    # row <-> col and orientation flips
-    def invert(self):
-        return StartSquare(self.col, self.row, not self.orientation)
